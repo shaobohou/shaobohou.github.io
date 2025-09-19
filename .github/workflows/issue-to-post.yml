@@ -57,7 +57,7 @@ jobs:
           ESCAPED_BODY=$(echo "$ISSUE_BODY" | sed 's/"/\\"/g')
 
           # Create post file with proper YAML escaping
-          cat > "$POST_FILENAME" << EOF
+          cat > "$POST_FILENAME" << 'EOF'
 ---
 title: "$ESCAPED_TITLE"
 date: $POST_DATE
@@ -72,6 +72,13 @@ EOF
           # Verify file was created successfully
           if [ ! -f "$POST_FILENAME" ]; then
             echo "❌ Error: Failed to create post file"
+            exit 1
+          fi
+
+          # Verify file has expected content
+          if [ ! -s "$POST_FILENAME" ] || ! grep -q "^title:" "$POST_FILENAME"; then
+            echo "❌ Error: Post file is empty or malformed"
+            cat "$POST_FILENAME"  # Show what was created for debugging
             exit 1
           fi
 
