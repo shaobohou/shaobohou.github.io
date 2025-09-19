@@ -1,0 +1,101 @@
+# .github/workflows/issue-to-post.yml
+
+name: Publish Post on Approval Comment
+
+# Trigger on new comments on issues
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  publish_post:
+    # A series of checks to ensure we should run:
+    if: >
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '/publish') &&
+      github.actor == 'shaobohou'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      issues: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Post File from Issue
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -e  # Exit on any error
+
+          # Ensure _posts directory exists
+          mkdir -p _posts
+
+          # Generate post date
+          POST_DATE=$(date -u +'%Y-%m-%d')
+
+          # Sanitize title for slug generation
+          # Remove/replace problematic characters and handle consecutive dashes
+          POST_SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | \
+            sed -e 's/[^a-zA-Z0-9 -]//g' -e 's/ \+/-/g' -e 's/-\+/-/g' -e 's/^-\|-$//g')
+
+          # Ensure slug is not empty
+          if [ -z "$POST_SLUG" ]; then
+            POST_SLUG="issue-$ISSUE_NUMBER"
+          fi
+
+          # Create filename
+          POST_FILENAME="_posts/${POST_DATE}-${POST_SLUG}.md"
+
+          # Escape quotes in title and body for YAML safety
+          ESCAPED_TITLE=$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')
+          ESCAPED_BODY=$(echo "$ISSUE_BODY" | sed 's/"/\\"/g')
+
+          # Create post file with proper YAML escaping
+          cat > "$POST_FILENAME" << EOF
+---
+title: "$ESCAPED_TITLE"
+date: $POST_DATE
+issue_number: $ISSUE_NUMBER
+---
+
+$ESCAPED_BODY
+EOF
+
+          echo "✅ Post file created at $POST_FILENAME"
+
+          # Verify file was created successfully
+          if [ ! -f "$POST_FILENAME" ]; then
+            echo "❌ Error: Failed to create post file"
+            exit 1
+          fi
+
+      - name: Commit and Push New Post
+        run: |
+          set -e  # Exit on any error
+
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # Check if there are changes to commit
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git add _posts/
+          git commit -m "Publish post from issue #${{ github.event.issue.number }}"
+          git push
+
+      # Optional: Add a confirmation comment back to the issue
+      - name: Add Confirmation Comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🚀 This issue has been successfully published as a blog post!
