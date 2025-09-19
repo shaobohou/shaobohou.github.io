@@ -1,0 +1,56 @@
+# .github/workflows/issue-to-post.yml
+
+name: Publish Post on Approval Comment
+
+# Trigger on new comments on issues
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  publish_post:
+    # A series of checks to ensure we should run:
+    if: >
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '/publish') &&
+      github.actor == 'your-username' # IMPORTANT: Change this to your username
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      issues: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Post File from Issue
+        env:
+          # Note: The context is now github.event.issue, not github.event
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # The rest of this script is the same as before
+          POST_DATE=$(date -u +'%Y-%m-%d')
+          POST_SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed -e 's/ /-/g' -e 's/[^a-zA-Z0-9-]//g')
+          POST_FILENAME="_posts/${POST_DATE}-${POST_SLUG}.md"
+          printf -- "---\ntitle: \"${ISSUE_TITLE}\"\ndate: ${POST_DATE}\nissue_number: ${ISSUE_NUMBER}\n---\n\n${ISSUE_BODY}" > "${POST_FILENAME}"
+          echo "✅ Post file created at ${POST_FILENAME}"
+
+      - name: Commit and Push New Post
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add _posts/*
+          git commit -m "Publish post from issue #${{ github.event.issue.number }}"
+          git push
+
+      # Optional: Add a confirmation comment back to the issue
+      - name: Add Confirmation Comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🚀 This issue has been successfully published as a blog post!
