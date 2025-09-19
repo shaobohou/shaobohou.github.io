@@ -69,6 +69,11 @@ jobs:
 
           echo "✅ Post file created at $POST_FILENAME"
 
+          # Debug: Show current working directory and file system state
+          echo "Current directory: $(pwd)"
+          echo "Files in _posts directory:"
+          ls -la _posts/ || echo "No _posts directory found"
+
           # Verify file was created successfully
           if [ ! -f "$POST_FILENAME" ]; then
             echo "❌ Error: Failed to create post file"
@@ -81,6 +86,12 @@ jobs:
             cat "$POST_FILENAME"  # Show what was created for debugging
             exit 1
           fi
+
+          # Debug: Show file content and git status
+          echo "Post file content:"
+          cat "$POST_FILENAME"
+          echo "Git status before commit:"
+          git status
 
       - name: Commit and Push New Post
         run: |
