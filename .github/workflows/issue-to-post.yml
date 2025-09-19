@@ -100,13 +100,14 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-          # Check if there are changes to commit
-          if git diff --quiet && git diff --staged --quiet; then
+          # Add the new post file
+          git add _posts/
+
+          # Check if there are changes to commit (after staging)
+          if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0
           fi
-
-          git add _posts/
           git commit -m "Publish post from issue #${{ github.event.issue.number }}"
           git push
 
