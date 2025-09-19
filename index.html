@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ site.title }}</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    h1 {
+      text-align: center;
+    }
+    .post {
+      margin-bottom: 2rem;
+    }
+    .post-title {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .post-date {
+      color: #777;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>{{ site.title }}</h1>
+  <p>{{ site.description }}</p>
+
+  {% for post in site.posts %}
+    <div class="post">
+      <div class="post-title">
+        <a href="{{ post.url }}">{{ post.title }}</a>
+      </div>
+      <div class="post-date">
+        {{ post.date | date: "%B %d, %Y" }}
+      </div>
+      <p>{{ post.excerpt }}</p>
+    </div>
+  {% endfor %}
+</body>
+</html>
