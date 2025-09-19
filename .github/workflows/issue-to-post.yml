@@ -19,7 +19,7 @@ jobs:
 
     permissions:
       contents: write
-      issues: read
+      issues: write
 
     steps:
       - name: Checkout repository
@@ -69,11 +69,6 @@ jobs:
 
           echo "✅ Post file created at $POST_FILENAME"
 
-          # Debug: Show current working directory and file system state
-          echo "Current directory: $(pwd)"
-          echo "Files in _posts directory:"
-          ls -la _posts/ || echo "No _posts directory found"
-
           # Verify file was created successfully
           if [ ! -f "$POST_FILENAME" ]; then
             echo "❌ Error: Failed to create post file"
@@ -87,11 +82,10 @@ jobs:
             exit 1
           fi
 
-          # Debug: Show file content and git status
-          echo "Post file content:"
-          cat "$POST_FILENAME"
-          echo "Git status before commit:"
-          git status
+          # Export variables for next steps
+          echo "POST_DATE=$POST_DATE" >> $GITHUB_ENV
+          echo "POST_SLUG=$POST_SLUG" >> $GITHUB_ENV
+          echo "POST_FILENAME=$POST_FILENAME" >> $GITHUB_ENV
 
       - name: Commit and Push New Post
         run: |
@@ -117,4 +111,6 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            🚀 This issue has been successfully published as a blog post!
+            ✅ **Published as blog post!**
+
+            📝 **File:** `${{ env.POST_FILENAME }}`
