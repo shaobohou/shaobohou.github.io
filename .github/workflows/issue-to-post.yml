@@ -57,15 +57,15 @@ jobs:
           ESCAPED_BODY=$(echo "$ISSUE_BODY" | sed 's/"/\\"/g')
 
           # Create post file with proper YAML escaping
-          cat > "$POST_FILENAME" << 'EOF'
----
-title: "$ESCAPED_TITLE"
-date: $POST_DATE
-issue_number: $ISSUE_NUMBER
----
-
-$ESCAPED_BODY
-EOF
+          {
+            echo "---"
+            echo "title: \"$ESCAPED_TITLE\""
+            echo "date: $POST_DATE"
+            echo "issue_number: $ISSUE_NUMBER"
+            echo "---"
+            echo ""
+            echo "$ESCAPED_BODY"
+          } > "$POST_FILENAME"
 
           echo "✅ Post file created at $POST_FILENAME"
 
