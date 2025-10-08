@@ -13,7 +13,7 @@ jobs:
     if: >
       github.event.issue.pull_request == null &&
       contains(github.event.comment.body, '/publish') &&
-      github.actor == 'shaobohou'
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
 
     runs-on: ubuntu-latest
 
