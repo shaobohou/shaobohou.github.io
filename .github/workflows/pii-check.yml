@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          response_file="${{ steps.pii_scan.outputs.response-file }}"
+          response_file="${{ steps.pii_scan.outputs['response-file'] }}"
           if [ -n "$response_file" ] && [ -f "$response_file" ]; then
             response="$(cat "$response_file")"
           else
