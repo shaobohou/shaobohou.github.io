@@ -1,0 +1,72 @@
+name: PII Leak Check
+
+on:
+  pull_request:
+    paths:
+      - '_posts/**'
+
+jobs:
+  github-models-pii-scan:
+    name: Scan blog posts with GitHub Models
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      models: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect post changes
+        id: diff
+        run: |
+          set -euo pipefail
+
+          git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
+
+          git diff --unified=0 "origin/${{ github.event.pull_request.base.ref }}"...HEAD -- _posts > post_changes.diff || true
+
+          if [ ! -s post_changes.diff ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "diff_path=post_changes.diff" >> "$GITHUB_OUTPUT"
+
+      - name: Analyze diff for PII with GitHub Models
+        if: steps.diff.outputs.has_changes == 'true'
+        id: pii_scan
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: .github/prompts/pii-scan.prompt.yml
+          input: |
+            pr_number: ${{ github.event.pull_request.number }}
+          file_input: |
+            diff: ${{ steps.diff.outputs.diff_path }}
+
+      - name: Evaluate scan results
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          set -euo pipefail
+
+          response='${{ steps.pii_scan.outputs.response }}'
+
+          if [ -z "$response" ]; then
+            echo "Model response was empty" >&2
+            exit 1
+          fi
+
+          echo "Model response:" >&2
+          echo "$response" | jq '.' >&2
+
+          pii_detected=$(jq -r '.pii_detected' <<<"$response")
+
+          if [ "$pii_detected" = "true" ]; then
+            jq -r '.findings[] | "::error file=" + (.location // "_posts") + "::[" + (.confidence | ascii_upcase) + "] " + .type + " - " + .explanation' <<<"$response"
+            exit 1
+          fi
+
+          echo "::notice::No PII detected in updated posts"
