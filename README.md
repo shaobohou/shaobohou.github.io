@@ -1,6 +1,6 @@
 # shaobohou.github.io
 
-This repository contains the source code for a personal site hosted on GitHub Pages. The site is built with [Jekyll](https://jekyllrb.com/) and uses the standard GitHub Pages workflow for deployment.
+This repository contains the source code for a personal site hosted on GitHub Pages. The site is built with [Jekyll](https://jekyllrb.com/) and uses the standard GitHub Pages workflow for deployment. These pages double as a sandbox for experimenting with LLM agents, vibe engineering, and general GitHub shenanigans, so expect things to change frequently as new ideas are tested.
 
 ## Workflow: turning an issue into a post
 
