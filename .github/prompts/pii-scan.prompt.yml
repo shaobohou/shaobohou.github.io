@@ -28,7 +28,7 @@ messages:
 
       Diff to review:
       {{diff}}
-model: openai/gpt-4o-mini
+model: openai/gpt-4.1-mini
 responseFormat: json_schema
 jsonSchema: |
   {
