@@ -1,5 +1,5 @@
-title: A Thing
-description: Some stuff
+title: LLMs and Github shenanigans
+description: A playground for experimenting with LLM agents, vibe engineering, and assorted GitHub shenanigans.
 defaults:
   - scope:
       path: ""
