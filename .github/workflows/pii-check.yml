@@ -1,0 +1,121 @@
+name: PII Leak Check
+
+on:
+  pull_request:
+    paths:
+      - '_posts/**'
+
+jobs:
+  github-models-pii-scan:
+    name: Scan blog posts with GitHub Models
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      models: read
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect post changes
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$HEAD_SHA"
+          fi
+
+          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          fi
+
+          git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- _posts > post_changes.diff || true
+
+          if [ ! -s post_changes.diff ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          characters=$(wc -c < post_changes.diff | tr -d '[:space:]')
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "diff_path=post_changes.diff" >> "$GITHUB_OUTPUT"
+          echo "characters=$characters" >> "$GITHUB_OUTPUT"
+
+      - name: Analyze diff for PII with GitHub Models
+        if: steps.diff.outputs.has_changes == 'true'
+        id: pii_scan
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: .github/prompts/pii-scan.prompt.yml
+          input: |
+            pr_number: ${{ github.event.pull_request.number }}
+          file-inputs: |
+            diff: ${{ steps.diff.outputs.diff_path }}
+
+      - name: Evaluate scan results
+        if: steps.diff.outputs.has_changes == 'true'
+        id: evaluate
+        run: |
+          set -euo pipefail
+
+          response_file="${{ steps.pii_scan.outputs['response-file'] }}"
+          if [ -n "$response_file" ] && [ -f "$response_file" ]; then
+            response="$(cat "$response_file")"
+          else
+            response="${{ steps.pii_scan.outputs.response }}"
+          fi
+
+          if [ -z "$response" ]; then
+            echo "Model response was empty" >&2
+            exit 1
+          fi
+
+          echo "Model response:" >&2
+          echo "$response" | jq '.' >&2
+
+          pii_detected=$(jq -r '.pii_detected' <<<"$response")
+          summary=$(jq -r '.summary // ""' <<<"$response" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
+
+          if [ "$pii_detected" = "true" ]; then
+            jq -r '.findings[] | "::error file=" + (.location // "_posts") + "::[" + (.confidence | ascii_upcase) + "] " + .type + " - " + .explanation' <<<"$response"
+          fi
+
+          if [ "$pii_detected" != "true" ]; then
+            echo "::notice::No PII detected in updated posts"
+          fi
+
+          echo "pii_detected=$pii_detected" >> "$GITHUB_OUTPUT"
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+
+      - name: Post scan summary comment
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const rawSummary = ${{ toJSON(steps.evaluate.outputs.summary) }};
+            const summary = (rawSummary ?? '').trim();
+            const characters = Number(`${{ steps.diff.outputs.characters }}` || '0');
+            const topic = summary.length > 0 ? summary : 'No summary provided.';
+            const body = `PII scan summary: scanned ${characters} characters. Topic: ${topic}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+      - name: Fail workflow when PII detected
+        if: steps.diff.outputs.has_changes == 'true' && steps.evaluate.outputs.pii_detected == 'true'
+        run: |
+          echo "PII detected in diff" >&2
+          exit 1
