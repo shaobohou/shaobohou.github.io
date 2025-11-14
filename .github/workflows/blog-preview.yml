@@ -158,54 +158,27 @@ jobs:
             const prNumber = ${{ steps.pr.outputs.number }};
             const commitSha = context.payload.pull_request?.head.sha || context.sha;
 
-            // Construct URL to the preview image
+            // Construct URL to the preview image with cache busting
             const imageUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/preview-images/pr-${prNumber}/homepage-preview.png`;
+            const timestamp = Date.now();
+            const imageUrlWithParams = imageUrl + '?raw=true&cache=' + timestamp;
 
-            // Find existing preview comment
-            const { data: comments } = await github.rest.issues.listComments({
+            const commentBody = '## 🎨 Blog Homepage Preview\n\n' +
+              'Here\'s how the homepage will look with your changes:\n\n' +
+              '![Homepage Preview](' + imageUrlWithParams + ')\n\n' +
+              '<details>\n' +
+              '<summary>📊 Preview Information</summary>\n\n' +
+              '- **PR**: #' + prNumber + '\n' +
+              '- **Commit**: ' + commitSha.substring(0, 7) + '\n' +
+              '- **Generated**: ' + new Date().toISOString() + '\n' +
+              '- **Artifact**: Available in workflow run artifacts\n\n' +
+              '</details>\n\n' +
+              '> 💡 This preview is automatically generated when changes are made to posts, layouts, or the homepage.';
+
+            // Always create a new comment for each commit
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: prNumber
+              issue_number: prNumber,
+              body: commentBody
             });
-
-            const botComment = comments.find(comment =>
-              comment.user.type === 'Bot' &&
-              comment.body.includes('🎨 Blog Homepage Preview')
-            );
-
-            const commentBody = `## 🎨 Blog Homepage Preview
-
-Here's how the homepage will look with your changes:
-
-![Homepage Preview](${imageUrl}?raw=true&t=${Date.now()})
-
-<details>
-<summary>📊 Preview Information</summary>
-
-- **PR**: #${prNumber}
-- **Commit**: ${commitSha.substring(0, 7)}
-- **Generated**: ${new Date().toISOString()}
-- **Artifact**: Available in workflow run artifacts
-
-</details>
-
-> 💡 This preview is automatically generated when changes are made to posts, layouts, or the homepage.
-            `;
-
-            if (botComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: commentBody
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: commentBody
-              });
-            }
