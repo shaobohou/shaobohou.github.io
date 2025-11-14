@@ -10,6 +10,7 @@ on:
       - '_config.yml'
       - 'assets/**'
       - '.github/workflows/blog-preview.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -90,6 +91,32 @@ jobs:
           path: homepage-preview.png
           retention-days: 30
 
+      - name: Get PR number
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prNumber;
+            if (context.payload.pull_request) {
+              prNumber = context.payload.pull_request.number;
+            } else {
+              // Find PR for current branch
+              const branch = context.ref.replace('refs/heads/', '');
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: `${context.repo.owner}:${branch}`,
+                state: 'open'
+              });
+              if (prs.length === 0) {
+                core.setFailed('No open PR found for this branch');
+                return;
+              }
+              prNumber = prs[0].number;
+            }
+            core.setOutput('number', prNumber);
+            return prNumber;
+
       - name: Upload preview to branch
         run: |
           git config user.name "github-actions[bot]"
@@ -108,19 +135,19 @@ jobs:
           fi
 
           # Create directory for this PR
-          mkdir -p pr-${{ github.event.pull_request.number }}
+          mkdir -p pr-${{ steps.pr.outputs.number }}
 
           # Copy screenshot from temp location
-          cp /tmp/homepage-preview.png pr-${{ github.event.pull_request.number }}/homepage-preview.png
+          cp /tmp/homepage-preview.png pr-${{ steps.pr.outputs.number }}/homepage-preview.png
 
           # Stage the file
-          git add pr-${{ github.event.pull_request.number }}/homepage-preview.png
+          git add pr-${{ steps.pr.outputs.number }}/homepage-preview.png
 
           # Check if there are changes to commit
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit - preview image is identical"
           else
-            git commit -m "Add preview for PR #${{ github.event.pull_request.number }}"
+            git commit -m "Add preview for PR #${{ steps.pr.outputs.number }}"
             git push origin preview-images
           fi
 
@@ -128,8 +155,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.payload.pull_request.number;
-            const commitSha = context.payload.pull_request.head.sha;
+            const prNumber = ${{ steps.pr.outputs.number }};
+            const commitSha = context.payload.pull_request?.head.sha || context.sha;
 
             // Construct URL to the preview image
             const imageUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/preview-images/pr-${prNumber}/homepage-preview.png`;
