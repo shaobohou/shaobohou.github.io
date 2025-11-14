@@ -162,18 +162,6 @@ jobs:
             const imageUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/preview-images/pr-${prNumber}/homepage-preview.png`;
             const imageUrlWithParams = imageUrl + '?raw=true';
 
-            // Find existing preview comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const botComment = comments.find(comment =>
-              comment.user.login === 'github-actions[bot]' &&
-              comment.body.includes('🎨 Blog Homepage Preview')
-            );
-
             const commentBody = '## 🎨 Blog Homepage Preview\n\n' +
               'Here\'s how the homepage will look with your changes:\n\n' +
               '![Homepage Preview](' + imageUrlWithParams + ')\n\n' +
@@ -186,20 +174,10 @@ jobs:
               '</details>\n\n' +
               '> 💡 This preview is automatically generated when changes are made to posts, layouts, or the homepage.';
 
-            if (botComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: commentBody
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: commentBody
-              });
-            }
+            // Always create a new comment for each commit
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });
