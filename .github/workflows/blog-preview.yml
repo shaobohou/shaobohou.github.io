@@ -174,24 +174,17 @@ jobs:
               comment.body.includes('🎨 Blog Homepage Preview')
             );
 
-            const commentBody = `## 🎨 Blog Homepage Preview
-
-Here's how the homepage will look with your changes:
-
-![Homepage Preview](${imageUrlWithParams})
-
-<details>
-<summary>📊 Preview Information</summary>
-
-- **PR**: #${prNumber}
-- **Commit**: ${commitSha.substring(0, 7)}
-- **Generated**: ${new Date().toISOString()}
-- **Artifact**: Available in workflow run artifacts
-
-</details>
-
-> 💡 This preview is automatically generated when changes are made to posts, layouts, or the homepage.
-            `;
+            const commentBody = '## 🎨 Blog Homepage Preview\n\n' +
+              'Here\'s how the homepage will look with your changes:\n\n' +
+              '![Homepage Preview](' + imageUrlWithParams + ')\n\n' +
+              '<details>\n' +
+              '<summary>📊 Preview Information</summary>\n\n' +
+              '- **PR**: #' + prNumber + '\n' +
+              '- **Commit**: ' + commitSha.substring(0, 7) + '\n' +
+              '- **Generated**: ' + new Date().toISOString() + '\n' +
+              '- **Artifact**: Available in workflow run artifacts\n\n' +
+              '</details>\n\n' +
+              '> 💡 This preview is automatically generated when changes are made to posts, layouts, or the homepage.';
 
             if (botComment) {
               // Update existing comment
