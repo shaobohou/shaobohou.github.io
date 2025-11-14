@@ -1,0 +1,93 @@
+name: Preview Homepage Screenshot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+
+      - name: Install Ruby dependencies
+        run: bundle install --jobs 4 --retry 3
+
+      - name: Build site
+        run: bundle exec jekyll build
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Chromium dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libnss3 \
+            libnspr4 \
+            libx11-6 \
+            libx11-xcb1 \
+            libxcb1 \
+            libxcb-dri3-0 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxext6 \
+            libxfixes3 \
+            libxrandr2 \
+            libxshmfence1 \
+            libxss1 \
+            libxtst6 \
+            libxi6 \
+            libpangocairo-1.0-0 \
+            libpango-1.0-0 \
+            libxkbcommon0 \
+            libatspi2.0-0 \
+            libdrm2 \
+            libgbm1 \
+            fonts-noto-color-emoji
+          sudo apt-get install -y --no-install-recommends libgtk-3-0t64 || sudo apt-get install -y --no-install-recommends libgtk-3-0
+          sudo apt-get install -y --no-install-recommends libatk-bridge2.0-0t64 || sudo apt-get install -y --no-install-recommends libatk-bridge2.0-0
+          sudo apt-get install -y --no-install-recommends libasound2t64 || sudo apt-get install -y --no-install-recommends libasound2
+          sudo apt-get install -y --no-install-recommends libcups2t64 || sudo apt-get install -y --no-install-recommends libcups2
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Capture homepage screenshot
+        run: node scripts/capture-homepage-screenshot.mjs _site artifacts/homepage.png
+
+      - name: Upload homepage screenshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: homepage-screenshot
+          path: artifacts/homepage.png
+          if-no-files-found: error
+
+      - name: Share preview in PR
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            📸 **Homepage preview available**
+
+            A fresh screenshot of the homepage is ready for download from this workflow run: [Homepage screenshot artifact](${{ env.RUN_URL }}).
+
+            Artifact name: `homepage-screenshot`
+          identifier: homepage-preview
+          edit-mode: replace
