@@ -95,8 +95,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Save the screenshot path
-          SCREENSHOT_PATH="$(pwd)/homepage-preview.png"
+          # Copy screenshot to temp location outside git tree
+          cp homepage-preview.png /tmp/homepage-preview.png
 
           # Try to fetch and checkout the preview-images branch
           if git fetch origin preview-images 2>/dev/null; then
@@ -110,8 +110,8 @@ jobs:
           # Create directory for this PR
           mkdir -p pr-${{ github.event.pull_request.number }}
 
-          # Copy screenshot from original location
-          cp "$SCREENSHOT_PATH" pr-${{ github.event.pull_request.number }}/homepage-preview.png
+          # Copy screenshot from temp location
+          cp /tmp/homepage-preview.png pr-${{ github.event.pull_request.number }}/homepage-preview.png
 
           # Stage the file
           git add pr-${{ github.event.pull_request.number }}/homepage-preview.png
