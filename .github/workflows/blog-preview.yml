@@ -173,12 +173,11 @@ jobs:
               comment.body.includes('🎨 Blog Homepage Preview')
             );
 
-            const timestamp = Date.now();
             const commentBody = `## 🎨 Blog Homepage Preview
 
 Here's how the homepage will look with your changes:
 
-![Homepage Preview](${imageUrl}?raw=true&timestamp=${timestamp})
+![Homepage Preview](${imageUrl}?raw=true)
 
 <details>
 <summary>📊 Preview Information</summary>
