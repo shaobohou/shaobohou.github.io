@@ -158,9 +158,10 @@ jobs:
             const prNumber = ${{ steps.pr.outputs.number }};
             const commitSha = context.payload.pull_request?.head.sha || context.sha;
 
-            // Construct URL to the preview image
+            // Construct URL to the preview image with cache busting
             const imageUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/preview-images/pr-${prNumber}/homepage-preview.png`;
-            const imageUrlWithParams = imageUrl + '?raw=true';
+            const timestamp = Date.now();
+            const imageUrlWithParams = imageUrl + '?raw=true&cache=' + timestamp;
 
             const commentBody = '## 🎨 Blog Homepage Preview\n\n' +
               'Here\'s how the homepage will look with your changes:\n\n' +
