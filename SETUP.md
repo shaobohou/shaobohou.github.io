@@ -132,16 +132,26 @@ bundle exec jekyll build
 
 ### PII Leak Check Workflow (`pii-check.yml`)
 
-**Purpose:** Scans blog post changes for personally identifiable information
+**Purpose:** Scans blog post content for personally identifiable information
 
-**Trigger:** Pull requests modifying files in `_posts/`
+**Trigger:**
+- Pull requests modifying files in `_posts/`
+- Issues when opened or edited
 
 **Process:**
+For pull requests:
 1. Collects diff of post changes between base and head commits
 2. Sends diff to GitHub Models AI for PII analysis
 3. Evaluates response for PII detection
 4. Posts summary comment to PR
 5. Fails workflow if PII is detected
+
+For issues:
+1. Extracts issue body content
+2. Sends content to GitHub Models AI for PII analysis
+3. Evaluates response for PII detection
+4. Posts summary comment to issue
+5. Fails workflow if PII is detected (alerts before publishing with `/publish`)
 
 **Permissions Required:**
 - `contents: read` (read repository)

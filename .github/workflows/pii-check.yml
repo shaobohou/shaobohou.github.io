@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - '_posts/**'
+  issues:
+    types: [opened, edited]
 
 jobs:
   github-models-pii-scan:
@@ -26,9 +28,28 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           set -euo pipefail
 
+          # Handle issue events
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            if [ -z "$ISSUE_BODY" ]; then
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # Write issue body to file for scanning
+            echo "$ISSUE_BODY" > post_changes.diff
+            characters=$(wc -c < post_changes.diff | tr -d '[:space:]')
+
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "diff_path=post_changes.diff" >> "$GITHUB_OUTPUT"
+            echo "characters=$characters" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Handle pull request events
           if ! git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
             git fetch --no-tags --depth=1 origin "$HEAD_SHA"
           fi
@@ -57,7 +78,7 @@ jobs:
         with:
           prompt-file: .github/prompts/pii-scan.prompt.yml
           input: |
-            pr_number: ${{ github.event.pull_request.number }}
+            issue_number: ${{ github.event.issue.number || github.event.pull_request.number }}
           file-inputs: |
             diff: ${{ steps.diff.outputs.diff_path }}
 
@@ -106,7 +127,20 @@ jobs:
             const summary = (rawSummary ?? '').trim();
             const characters = Number(`${{ steps.diff.outputs.characters }}` || '0');
             const topic = summary.length > 0 ? summary : 'No summary provided.';
-            const body = `PII scan summary: scanned ${characters} characters. Topic: ${topic}`;
+            const piiDetected = '${{ steps.evaluate.outputs.pii_detected }}' === 'true';
+            const eventType = '${{ github.event_name }}';
+
+            let body = `### 🔍 PII Scan Results\n\n`;
+            body += `**Scanned:** ${characters} characters\n`;
+            body += `**Topic:** ${topic}\n`;
+            body += `**Status:** ${piiDetected ? '⚠️ PII Detected' : '✅ No PII Detected'}\n`;
+
+            if (eventType === 'issues') {
+              body += `\n_Scanned issue body for personally identifiable information._`;
+            } else {
+              body += `\n_Scanned post changes for personally identifiable information._`;
+            }
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -117,5 +151,9 @@ jobs:
       - name: Fail workflow when PII detected
         if: steps.diff.outputs.has_changes == 'true' && steps.evaluate.outputs.pii_detected == 'true'
         run: |
-          echo "PII detected in diff" >&2
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            echo "⚠️ PII detected in issue body. Please remove sensitive information before publishing." >&2
+          else
+            echo "⚠️ PII detected in post changes. Please remove sensitive information before merging." >&2
+          fi
           exit 1
