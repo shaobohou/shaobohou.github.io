@@ -95,20 +95,34 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create/checkout preview-images branch
-          git fetch origin preview-images:preview-images 2>/dev/null || git checkout --orphan preview-images
-          git checkout preview-images 2>/dev/null || true
+          # Save the screenshot path
+          SCREENSHOT_PATH="$(pwd)/homepage-preview.png"
+
+          # Try to fetch and checkout the preview-images branch
+          if git fetch origin preview-images 2>/dev/null; then
+            git checkout -B preview-images origin/preview-images
+          else
+            # Branch doesn't exist, create it as orphan
+            git checkout --orphan preview-images
+            git rm -rf . 2>/dev/null || true
+          fi
 
           # Create directory for this PR
           mkdir -p pr-${{ github.event.pull_request.number }}
 
-          # Copy screenshot
-          cp homepage-preview.png pr-${{ github.event.pull_request.number }}/homepage-preview.png
+          # Copy screenshot from original location
+          cp "$SCREENSHOT_PATH" pr-${{ github.event.pull_request.number }}/homepage-preview.png
 
-          # Commit and push
+          # Stage the file
           git add pr-${{ github.event.pull_request.number }}/homepage-preview.png
-          git commit -m "Add preview for PR #${{ github.event.pull_request.number }}" || true
-          git push origin preview-images
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes to commit - preview image is identical"
+          else
+            git commit -m "Add preview for PR #${{ github.event.pull_request.number }}"
+            git push origin preview-images
+          fi
 
       - name: Post preview comment
         uses: actions/github-script@v7
