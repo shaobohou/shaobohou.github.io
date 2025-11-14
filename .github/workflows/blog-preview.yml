@@ -160,6 +160,7 @@ jobs:
 
             // Construct URL to the preview image
             const imageUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/preview-images/pr-${prNumber}/homepage-preview.png`;
+            const imageUrlWithParams = imageUrl + '?raw=true';
 
             // Find existing preview comment
             const { data: comments } = await github.rest.issues.listComments({
@@ -177,7 +178,7 @@ jobs:
 
 Here's how the homepage will look with your changes:
 
-![Homepage Preview](${imageUrl}?raw=true)
+![Homepage Preview](${imageUrlWithParams})
 
 <details>
 <summary>📊 Preview Information</summary>
