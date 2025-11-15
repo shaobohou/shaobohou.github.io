@@ -49,10 +49,8 @@ jobs:
               exit 0
             fi
 
-            # Write issue body to file for scanning using heredoc to prevent injection
-            cat > post_changes.diff <<'EOF'
-${{ github.event.issue.body }}
-EOF
+            # Write issue body to file for scanning using printf to prevent injection
+            printf '%s' "$ISSUE_BODY" > post_changes.diff
             characters=$(wc -c < post_changes.diff | tr -d '[:space:]')
 
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
