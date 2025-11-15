@@ -39,8 +39,16 @@ jobs:
               exit 0
             fi
 
-            # Write issue body to file for scanning
-            echo "$ISSUE_BODY" > post_changes.diff
+            # Check if issue body is only whitespace
+            if [ -z "$(echo "$ISSUE_BODY" | tr -d '[:space:]')" ]; then
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # Write issue body to file for scanning using heredoc to prevent injection
+            cat > post_changes.diff <<'EOF'
+${{ github.event.issue.body }}
+EOF
             characters=$(wc -c < post_changes.diff | tr -d '[:space:]')
 
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
