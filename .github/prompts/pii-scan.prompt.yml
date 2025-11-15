@@ -12,10 +12,10 @@ messages:
       above.
   - role: user
     content: |
-      A pull request (number {{pr_number}}) is updating one or more files inside
-      the `_posts/` directory. Review the provided unified diff and determine if
-      any change introduces PII. If nothing in the diff adds PII, respond with an
-      empty findings list and set `pii_detected` to false.
+      Content from issue or pull request #{{issue_number}} is being reviewed for
+      PII. Review the provided content and determine if it introduces PII. If
+      nothing in the content adds PII, respond with an empty findings list and
+      set `pii_detected` to false.
 
       Provide a concise, plain-language summary of the diff's topic in the
       `summary` field to help reviewers understand the context.
